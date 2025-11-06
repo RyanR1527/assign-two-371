@@ -3,35 +3,143 @@ import json
 from pathlib import Path
 import bisect
 
-# Generate all cyclical rotations of the term + '$'
+# 2-3 Tree Node Class
+class TwoThreeNode:
+    def __init__(self):
+        self.keys = []  # up to 2 keys (permuterms)
+        self.vals = []  # corresponding original terms
+        self.children = []  # up to 3 children (other nodes)
+        self.parent = None  # reference to parent node
+
+    def is_leaf(self):
+        return len(self.children) == 0
+
+    def arity(self):
+        return len(self.keys)
+
+# 2-3 Tree Class
+class TwoThreeTree:
+    def __init__(self):
+        self.root = TwoThreeNode()  # Start with an empty root node
+
+    def insert(self, key: str, val: str):
+        node = self.root
+        while not node.is_leaf():
+            if node.arity() == 1:
+                if key < node.keys[0]:
+                    node = node.children[0]
+                else:
+                    node = node.children[1]
+            else:
+                if key < node.keys[0]:
+                    node = node.children[0]
+                elif key < node.keys[1]:
+                    node = node.children[1]
+                else:
+                    node = node.children[2]
+        # Once leaf node is found, insert the key
+        self._insert_into_node(node, key, val)
+        # Fix the tree if necessary (split nodes if full)
+        self._fixup(node)
+
+    def _insert_into_node(self, node: TwoThreeNode, key: str, val: str):
+        if len(node.keys) < 2:
+            node.keys.append(key)
+            node.vals.append(val)
+            node.keys, node.vals = zip(*sorted(zip(node.keys, node.vals)))  # Sort keys and values
+            node.keys = list(node.keys)  # Convert tuple back to list
+            node.vals = list(node.vals)  # Convert tuple back to list
+        else:
+            middle_key = node.keys[1]
+            middle_val = node.vals[1]
+            left_node = TwoThreeNode()
+            right_node = TwoThreeNode()
+
+            left_node.keys = [node.keys[0]]
+            left_node.vals = [node.vals[0]]
+            right_node.keys = [node.keys[2]]
+            right_node.vals = [node.vals[2]]
+
+            node.keys = [middle_key]
+            node.vals = [middle_val]
+            node.children = [left_node, right_node]
+
+            left_node.parent = node
+            right_node.parent = node
+
+            self._fixup(node)
+
+    def _fixup(self, node: TwoThreeNode):
+        """Fix the tree after insertion by splitting nodes or propagating keys up"""
+        if node.parent is None:
+            return  # If there is no parent, the tree is balanced
+
+        if len(node.keys) == 2:
+            self.insert(node.keys[1], node.vals[1])
+        else:
+            self._fixup(node.parent)
+
+    def search(self, query: str) -> list[str]:
+        """Search the 2-3 tree for permuterms that match the given query"""
+        prefix = wildcard_to_prefix(query)  # Convert wildcard query to permuterm prefix
+        return self._search_node(self.root, prefix)
+
+    def _search_node(self, node: TwoThreeNode, prefix: str) -> list[str]:
+        """Recursively search the node and its children"""
+        results = []
+        if node.is_leaf():
+            # Binary search for matching keys in the leaf node
+            for i, key in enumerate(node.keys):
+                if key.startswith(prefix):
+                    results.append(node.vals[i])
+        else:
+            # Binary search for matching children in internal nodes
+            for i, key in enumerate(node.keys):
+                if prefix < key:
+                    results.extend(self._search_node(node.children[i], prefix))
+                if prefix == key:
+                    results.extend(self._search_node(node.children[i + 1], prefix))
+        return results
+
+# Generate permuterms
 def gen_permuterms(term: str) -> list[str]:
     w = term + "$"
     return [w[i:] + w[:i] for i in range(len(w))]
 
-# Build permuterm dictionary: permuterm -> original term
-def build_perm_map(terms: list[str]) -> dict[str, str]:
-    perm_map = {}
+# Build the permuterm dictionary and populate the 2-3 tree
+def build_perm_map(terms: list[str]) -> TwoThreeTree:
+    tree = TwoThreeTree()
     for term in terms:
         for perm in gen_permuterms(term):
-            perm_map[perm] = term
-    return perm_map
+            tree.insert(perm, term)
+    return tree
 
-# Convert wildcard query to the appropriate permuterm prefix
+# Convert wildcard query to permuterm prefix
 def wildcard_to_prefix(query: str) -> str:
     if query.count("*") != 1:
         raise ValueError("Only one '*' wildcard is supported.")
     pre, suf = query.split("*", 1)
     return f"{suf}${pre}"
 
-# Search for matching permuterms using binary search
-def search_permuterms(query: str, permuterm_dict: dict) -> list[str]:
+# Search for matching permuterms using the 2-3 tree
+def search_permuterms(query: str, tree: TwoThreeTree) -> list[str]:
     prefix = wildcard_to_prefix(query)
-    permuterms = sorted(permuterm_dict.keys())  # Sorted list of permuterms
-    idx = bisect.bisect_left(permuterms, prefix)
-    results = []
-    while idx < len(permuterms) and permuterms[idx].startswith(prefix):
-        results.append(permuterm_dict[permuterms[idx]])
-        idx += 1
+    print(f"Query: '{query}' converted to permuterm prefix: '{prefix}'")
+    results = tree.search(prefix)
+#debug for wildcard
+    if results:
+        print(f"Found {len(results)} matches:")
+        for res in results:
+            print(f"Match found: '{res}'")
+        else:
+            print("No matches found.")
+    if results:
+        print(f"Found {len(results)} matches:")
+        for res in results:
+            print(f"Match found: '{res}'")
+    else:
+        print("No matches found.")
+        
     return results
 
 def main():
