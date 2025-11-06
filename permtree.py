@@ -41,7 +41,6 @@ class TwoThreeTree:
         self._insert_into_node(node, key, val)
         # Fix the tree if necessary (split nodes if full)
         self._fixup(node)
-
     def _insert_into_node(self, node: TwoThreeNode, key: str, val: str):
         if len(node.keys) < 2:
             node.keys.append(key)
@@ -52,13 +51,14 @@ class TwoThreeTree:
         else:
             middle_key = node.keys[1]
             middle_val = node.vals[1]
+
             left_node = TwoThreeNode()
             right_node = TwoThreeNode()
 
             left_node.keys = [node.keys[0]]
             left_node.vals = [node.vals[0]]
-            right_node.keys = [node.keys[2]]
-            right_node.vals = [node.vals[2]]
+            right_node.keys = [node.keys[2]] if len(node.keys) > 2 else []  # Check for the third key
+            right_node.vals = [node.vals[2]] if len(node.vals) > 2 else []  # Check for the third value
 
             node.keys = [middle_key]
             node.vals = [middle_val]
@@ -67,17 +67,21 @@ class TwoThreeTree:
             left_node.parent = node
             right_node.parent = node
 
-            self._fixup(node)
-
+        self._fixup(node)
     def _fixup(self, node: TwoThreeNode):
-        """Fix the tree after insertion by splitting nodes or propagating keys up"""
+        """Fix the tree after insertion by splitting nodes or propagating keys up."""
+        # Base case: if there is no parent, we've reached the root.
         if node.parent is None:
-            return  # If there is no parent, the tree is balanced
+            return  # No need to fix up further if we've reached the root.
 
+    # If the node has two keys, it needs to be split.
         if len(node.keys) == 2:
+        # Perform split and insert middle key into parent
             self.insert(node.keys[1], node.vals[1])
         else:
+        # Propagate up to the parent node
             self._fixup(node.parent)
+
 
     def search(self, query: str) -> list[str]:
         """Search the 2-3 tree for permuterms that match the given query"""
