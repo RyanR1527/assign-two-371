@@ -70,17 +70,53 @@ class TwoThreeTree:
         self._fixup(node)
     def _fixup(self, node: TwoThreeNode):
         """Fix the tree after insertion by splitting nodes or propagating keys up."""
-        # Base case: if there is no parent, we've reached the root.
+        # Base case: If node has no parent, it's the root, and no fix-up is needed.
         if node.parent is None:
-            return  # No need to fix up further if we've reached the root.
+            return
 
-    # If the node has two keys, it needs to be split.
+        # If node has 2 keys, it needs to be split
         if len(node.keys) == 2:
-        # Perform split and insert middle key into parent
+            # We can insert the middle key into the parent
             self.insert(node.keys[1], node.vals[1])
-        else:
-        # Propagate up to the parent node
-            self._fixup(node.parent)
+
+        # If node has 3 keys, it has been split, so propagate upward to the parent node
+        elif len(node.keys) == 3:
+            # Perform a split and move the middle key upwards
+            middle_key = node.keys[1]
+            middle_val = node.vals[1]
+
+            # Split the node into two
+            left_node = TwoThreeNode()
+            right_node = TwoThreeNode()
+
+            # Assign values to the left and right node
+            left_node.keys = [node.keys[0]]
+            left_node.vals = [node.vals[0]]
+            right_node.keys = [node.keys[2]]
+            right_node.vals = [node.vals[2]]
+
+            # If the node is the root, we need to handle it specially
+            if node.parent is None:
+                new_root = TwoThreeNode()
+                new_root.keys = [middle_key]
+                new_root.vals = [middle_val]
+                new_root.children = [left_node, right_node]
+
+                left_node.parent = new_root
+                right_node.parent = new_root
+
+                self.root = new_root
+            else:
+                node.parent.keys.append(middle_key)
+                node.parent.vals.append(middle_val)
+
+                # Sort the parent keys and values
+                node.parent.keys, node.parent.vals = zip(*sorted(zip(node.parent.keys, node.parent.vals)))
+                node.parent.keys = list(node.parent.keys)
+                node.parent.vals = list(node.parent.vals)
+
+                # Propagate the changes upward
+                self._fixup(node.parent)
 
 
     def search(self, query: str) -> list[str]:
@@ -120,9 +156,21 @@ def build_perm_map(terms: list[str]) -> TwoThreeTree:
 
 # Convert wildcard query to permuterm prefix
 def wildcard_to_prefix(query: str) -> str:
+    """Convert the wildcard query into a permuterm prefix."""
+    print(f"Original query: '{query}'")  # Debugging line
+    # If the query contains no '*' wildcard, treat it normally by appending '$'
+    if "*" not in query:
+        return f"{query}$"
+    
+    # Otherwise, the query must contain exactly one '*'
     if query.count("*") != 1:
-        raise ValueError("Only one '*' wildcard is supported.")
+        raise ValueError(f"Invalid query: '{query}'. Only one '*' wildcard is supported.")
+    
+    # Split the query by '*' into prefix and suffix
     pre, suf = query.split("*", 1)
+    print(f"Split query - Prefix: '{pre}', Suffix: '{suf}'")  # Debugging line
+    
+    # Return the permuterm prefix (suffix + '$' + prefix)
     return f"{suf}${pre}"
 
 # Search for matching permuterms using the 2-3 tree
@@ -137,12 +185,7 @@ def search_permuterms(query: str, tree: TwoThreeTree) -> list[str]:
             print(f"Match found: '{res}'")
         else:
             print("No matches found.")
-    if results:
-        print(f"Found {len(results)} matches:")
-        for res in results:
-            print(f"Match found: '{res}'")
-    else:
-        print("No matches found.")
+   
         
     return results
 
@@ -161,6 +204,7 @@ def main():
 
     if args.query:
         # Perform wildcard search
+        print(f"Received query: {args.query}") #NOT TRIGGERING
         terms = search_permuterms(args.query, perm_map)
         for term in terms:
             doc_ids = inv.get(term, {}).get("postings", [])
