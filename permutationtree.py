@@ -22,11 +22,19 @@ def wildcard_to_prefix(query: str) -> str:
 
 def search_permuterms(query: str, permuterm_dict: dict) -> list[str]:
     prefix = wildcard_to_prefix(query)
+    #debug insurance
+      print(f"Query: '{query}' converted to permuterm prefix: '{prefix}'")
     permuterms = sorted(permuterm_dict.keys())
+#insurance
+     print(f"Total permuterms in dictionary: {len(permuterms)}")
     idx = bisect.bisect_left(permuterms, prefix)
+
+        print(f"Starting index for '{prefix}' in sorted permuterms: {idx}")
     results = []
     while idx < len(permuterms) and permuterms[idx].startswith(prefix):
+        print(f"Match found: permuterm '{permuterms[idx]}' -> original term '{permuterm_dict[permuterms[idx]]}'")
         results.append(permuterm_dict[permuterms[idx]])
+        
         idx += 1
     print(f"Found {len(results)} matching terms")
     return results
