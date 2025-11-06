@@ -1,6 +1,5 @@
 
-#requires downloading beautifulsoap from terminal to run (Assuming this is being viewed from vscode)
-#Ryan Rs assignment one
+#Ryan Rs imported assignment 2, detailed comments in assignment 1
 
 
 
